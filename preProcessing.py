@@ -111,11 +111,11 @@ df_items_sorted_by_mean_rating_merge2=df_items_sorted_by_mean_rating_merge[
     df_items_sorted_by_mean_rating_merge.rating_times>20
 ]
 #print('评分次数大于20:',df_items_sorted_by_mean_rating_merge2.head())
-'''fig,ax=plt.subplots(1,1,figsize=(12,4))
+fig,ax=plt.subplots(1,1,figsize=(12,4))
 ax.scatter(df_items_sorted_by_mean_rating_merge['rating_times'],
            df_items_sorted_by_mean_rating_merge['mean_rating'])
 
-plt.show()'''
+plt.show()
 #使用正则表达式取出上映年份
 df_items_sorted_by_mean_rating_merge['year']=df_items_sorted_by_mean_rating_merge.title.str.extract(
     '(\((\d{4})\))',expand=True
