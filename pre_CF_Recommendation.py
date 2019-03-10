@@ -25,8 +25,8 @@ unique_items = df_triplet['item_id'].unique()
 n_users = unique_users.shape[0]
 n_items = unique_items.shape[0]
 
-#print(n_users)
-#print(n_items)
+print(n_users)
+print(n_items)
 
 # 建立用户和物品的索引表
 # 本数据集中user_id和item_id都已经是索引了,可以减1，将从1开始编码变成从0开始的编码
