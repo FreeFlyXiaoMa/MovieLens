@@ -54,10 +54,10 @@ def user_similarity(uid1,uid2):
         return similarity
 
     #用户uid1的有效打分（对某一item的打分减去平均打分）
-    s1=np.array(user_item_scores[uid1,item]-users_mu[uid1] for item in si)
+    s1=np.array([user_item_scores[uid1,item]-users_mu[uid1] for item in si])
 
     #用户uid2的有效打分
-    s2=np.array(user_item_scores[uid2,item]-users_mu[uid2] for item in si)
+    s2=np.array([user_item_scores[uid2,item]-users_mu[uid2] for item in si])
 
     #相似性
     similarity=1-ssd.cosine(s1,s2)
@@ -79,8 +79,8 @@ for ui in range(n_users):
 
     #矩阵对称轴之外的数值
     for uj in range(ui+1,n_users):
-        users_similarity_matrix[ui,uj]=user_similarity(ui,uj)
-        users_similarity_matrix[uj,ui]=users_similarity_matrix[ui,uj]
+        users_similarity_matrix[uj,ui]=user_similarity(ui,uj)
+        users_similarity_matrix[ui,uj]=users_similarity_matrix[ui,uj]
 
 #将用户之间的相似性矩阵保存起来
 pickle.dump(users_similarity_matrix,open('users_similarity.pkl','wb'))
@@ -95,8 +95,8 @@ def users_similarity(n_users):
         if(ui%100==0):
             print('users_similarity(n_users),ui=%d'%ui)
         for uj in range(ui+1,n_users):
-            users_similarity_matrix[ui,uj]=user_similarity(ui,uj)
-            users_similarity_matrix[uj,ui]=users_similarity_matrix[ui,uj]
+            users_similarity_matrix[uj,ui]=user_similarity(ui,uj)
+            users_similarity_matrix[ui,uj]=users_similarity_matrix[uj,ui]
     pickle.dump(users_similarity_matrix,open('users_similarity.pkl','wb'))
     return users_similarity_matrix
 
@@ -132,10 +132,10 @@ def recommend(user):
     #预测打分
     for i in range(n_items):
         if i not in cur_user_items:
-            user_item_scores[i]=User_CF_pred(cur_user_id,i)
+            user_items_scores[i]=User_CF_pred(cur_user_id,i)
 
     #推荐
-    sort_index=sorted(((e,i) for i,e in enumerate(list(user_item_scores))),reverse=False)
+    sort_index=sorted(((e,i) for i,e in enumerate(list(user_items_scores))),reverse=False)
 
     columns=['item_id','score']
     df=pd.DataFrame(columns=columns)
@@ -143,5 +143,84 @@ def recommend(user):
 
     for i in range(0,len(sort_index)):
         cur_item_index=sort_index[i][1]
+        cur_item=list(items_index.keys())[list(items_index.values()).index((cur_item_index))]
+
+        if ~np.isnan(sort_index[i][0]) and cur_item_index not in cur_user_items:
+            df.loc[len(df)]=[cur_item,sort_index[i][0]]
+
+    return df
+
+
+
+
+#读取测试数据
+triplet_cols=['user_id','item_id','rating','timestamp']
+df_triplet_test=pd.read_csv('u1.test',sep='\t',names=triplet_cols,encoding='latin-1')
+
+unique_users_test=df_triplet_test['user_id'].unique()
+#为每个用户推荐的item数目
+n_rec_items=10
+
+#性能评价参数初始化，用户计算precision 和recall
+n_hits=0
+n_total_rec_items=0
+n_test_items=0
+
+#所有被推荐商品的集合（对不同用户），用于计算覆盖度
+all_rec_items=set()
+
+#残差平方和，用于计算rmse
+rss_test=0.0
+
+#对每个测试用户
+for user in unique_users_test:
+    if user not in users_index:
+        print(str(user)+'is a new user.\n')
+        continue
+    user_records_test=df_triplet_test[df_triplet_test.user_id==user]
+
+    #对每个测试用户，计算对训练集中未出现的商品的打分
+    rec_items=recommend(user)
+
+    #推荐商品
+    for i in range(n_rec_items):
+        item=rec_items.iloc[i]['item_id']
+
+        if item in user_records_test['item_id'].values:
+            n_hits+=1
+        all_rec_items.add(item)
+
+    #计算rmse
+    for i in range(user_records_test.shape[0]):
+        item=user_records_test.iloc[i]['item_id']
+        score=user_records_test.iloc[i]['rating']
+
+        df1=rec_items[rec_items.item_id==item]
+
+        if(df1.shape[0]==0):
+            print(str(item)+'is a new item.\n')
+            continue
+        pred_score=df1['score'].values[0]
+        rss_test+=(pred_score-score)**2
+
+    #推荐的item总数
+    n_total_rec_items+=n_rec_items
+
+    #真实item的总数
+    n_test_items+=user_records_test.shape[0]
+
+#
+precision=n_hits/(1.0*n_total_rec_items)
+recall=n_hits/(1.0*n_test_items)
+
+coverage=len(all_rec_items)/(1.0*n_items)
+
+#均方误差
+rmse=np.sqrt(rss_test/df_triplet_test.shape[0])
+
+print('precision=',precision)
+print('recall=',recall)
+print('coverage=',coverage)
+print('rmse=',rmse)
 
 
